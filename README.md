@@ -2,23 +2,21 @@
 
 **BlueSentry** is an advanced, production-ready Bluetooth Low Energy (BLE) scanner, analyzer, and tracker. It goes beyond simple scanning by providing real-time "Radar" visualization, detailed device fingerprinting (including Apple "Continuity" protocol analysis), and a built-in signal tracker ("Bloodhound" mode).
 
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
-![Python](https://img.shields.io/badge/Python-3.8+-blue)
 
 ## Features
 
-### 📡 Advanced Scanner (`bluesentry`)
+###  Advanced Scanner (`bluesentry`)
 *   **Live Radar Visualization:** A real-time, text-based radar display showing nearby devices relative to your position based on signal strength.
 *   **Privacy Analysis:** Automatically detects if a device is using a **Randomized** (Private) or **Public** (Trackable) MAC address.
 *   **De-Anonymization:** Identifies specific Apple devices (AirTags, AirPods, AirDrop, etc.) and other major brands (Fitbit, Tile, Garmin) even when they don't broadcast a name.
 *   **Sentry Mode (Auto-Logging):** Every scan automatically saves a CSV log of all detected devices, ensuring no data is lost even if the app crashes.
 
-### 🐕 Bloodhound Tracker
+###  Bloodhound Tracker
 *   **Signal Tracking:** A "Hot/Cold" game for physical device location.
 *   **Graphing:** Live RSSI graph to visualize signal trends.
 *   **Proximity Alerts:** Visual alerts when you are "Very Close" to the target.
 
-### 🔬 Interrogator
+###  Interrogator
 *   **Deep Inspection:** Connects to devices to dump their GATT Service Table.
 *   **Data Leaks:** Attempts to read standard characteristics to find exposed data (Device Name, Battery Level, etc.).
 
