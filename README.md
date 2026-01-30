@@ -1,77 +1,105 @@
 # BlueSentry
 
-**BlueSentry** is a passive Bluetooth Low Energy (BLE) scanner, analyzer, and tracker built with Python. It allows you to visualize the "invisible" world of BLE devices around you, analyze their broadcasts, and even track their physical location using signal strength.
+**BlueSentry** is an advanced, production-ready Bluetooth Low Energy (BLE) scanner, analyzer, and tracker. It goes beyond simple scanning by providing real-time "Radar" visualization, detailed device fingerprinting (including Apple "Continuity" protocol analysis), and a built-in signal tracker ("Bloodhound" mode).
 
-This project is designed for educational purposes to demonstrate how devices broadcast their presence and what information is leaked "over the air" without pairing.
+![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
+![Python](https://img.shields.io/badge/Python-3.8+-blue)
 
 ## Features
 
-*   **Live Scanner (`scanner.py`):**
-    *   Real-time detection of nearby BLE devices.
-    *   Displays MAC Address, RSSI (Signal Strength), Device Name, and Manufacturer.
-    *   Identifies device brands (Apple, Microsoft, Samsung) and service types (Heart Rate, Battery, etc.).
-    *   Interactive menu to select and interrogate specific devices.
+### 📡 Advanced Scanner (`bluesentry`)
+*   **Live Radar Visualization:** A real-time, text-based radar display showing nearby devices relative to your position based on signal strength.
+*   **Privacy Analysis:** Automatically detects if a device is using a **Randomized** (Private) or **Public** (Trackable) MAC address.
+*   **De-Anonymization:** Identifies specific Apple devices (AirTags, AirPods, AirDrop, etc.) and other major brands (Fitbit, Tile, Garmin) even when they don't broadcast a name.
+*   **Sentry Mode (Auto-Logging):** Every scan automatically saves a CSV log of all detected devices, ensuring no data is lost even if the app crashes.
 
-*   **Device Interrogator (`interrogator.py`):**
-    *   Connects to a target device to enumerate exposed Services and Characteristics.
-    *   Attempts to read values from readable characteristics (e.g., Device Name, Battery Level, Model Number).
-    *   Useful for security auditing and understanding what data a device exposes publicly.
+### 🐕 Bloodhound Tracker
+*   **Signal Tracking:** A "Hot/Cold" game for physical device location.
+*   **Graphing:** Live RSSI graph to visualize signal trends.
+*   **Proximity Alerts:** Visual alerts when you are "Very Close" to the target.
 
-*   **Signal Tracker (`tracker.py`):**
-    *   Live graphing of RSSI signal strength for a specific target device.
-    *   Visual "Proximity Alert" (Very Close, Nearby, In Range) to help physically locate a device.
-    *   Perfect for "Hide & Seek" experiments or finding lost BLE tags.
+### 🔬 Interrogator
+*   **Deep Inspection:** Connects to devices to dump their GATT Service Table.
+*   **Data Leaks:** Attempts to read standard characteristics to find exposed data (Device Name, Battery Level, etc.).
 
 ## Installation
 
-1.  **Clone the repository:**
-    ```bash
-    git clone <repository_url>
-    cd bluesentry
-    ```
-
-2.  **Install dependencies:**
-    ```bash
-    pip install -r requirements.txt
-    ```
-
-## Usage
-
-**Note:** On Linux, accessing the Bluetooth adapter usually requires root privileges. You may need to run these scripts with `sudo`.
-
-### 1. Run the Scanner
-Start here to see what's around you.
-
+### Option 1: Quick Run (No Install)
 ```bash
+# Clone the repo
+git clone <repository_url>
+cd bluesentry
+
+# Install dependencies
+pip install -r requirements.txt
+
+# Run
 sudo python3 scanner.py
 ```
-*   The scan runs for 15 seconds.
-*   After the scan, select a device ID to interrogate it, or `0` to exit.
 
-### 2. Interrogate a Specific Device
-If you already know the MAC address of a device, you can query it directly.
+### Option 2: System-Wide Installation
+Install BlueSentry as a command-line tool accessible from anywhere.
 
 ```bash
-sudo python3 interrogator.py <MAC_ADDRESS>
-```
-*   Example: `sudo python3 interrogator.py AA:BB:CC:11:22:33`
+# From within the project directory
+pip install .
 
-### 3. Track a Device
-Use this tool to find the physical location of a device by following its signal strength.
+# Now you can run it simply by typing:
+sudo bluesentry
+```
+
+*Note: On Linux, accessing the Bluetooth adapter usually requires root privileges (`sudo`).*
+
+## Usage Guide
+
+### 1. The Scanner
+The main tool for discovering devices.
+
+**Basic Scan (20 seconds):**
+```bash
+sudo bluesentry
+```
+
+**Custom Duration (e.g., 60 seconds):**
+```bash
+sudo bluesentry --duration 60
+```
+
+**Passive Mode (No UI, just logging):**
+Ideal for background monitoring.
+```bash
+sudo bluesentry --passive --output night_scan.csv
+```
+
+**Command Line Arguments:**
+*   `-t`, `--duration`: Scan duration in seconds (default: 20).
+*   `-o`, `--output`: Custom CSV filename for the log.
+*   `-p`, `--passive`: Run without the interactive menu (logs data and exits).
+
+### 2. Post-Scan Actions
+After an interactive scan finishes, you will see a menu:
+1.  **Interrogate:** Select a device ID to connect and inspect its services.
+2.  **BLOODHOUND:** Select a device ID to immediately launch the signal tracker.
+
+### 3. Standalone Tools
+You can also run the modules individually if you already have a target MAC address.
+
+**Tracker:**
+```bash
+sudo python3 tracker.py AA:BB:CC:11:22:33
+```
+
+**Interrogator:**
+```bash
+sudo python3 interrogator.py AA:BB:CC:11:22:33
+```
+
+## Running Tests
+To verify the internal logic (Vendor database, Apple identification, etc.):
 
 ```bash
-sudo python3 tracker.py <MAC_ADDRESS>
+python3 -m unittest discover tests
 ```
-*   The terminal will display a live graph. Move around with your laptop; higher signal (closer to -40) means you are getting warmer!
-
-## Key Concepts
-
-*   **Advertising Packets:** Data broadcast by devices to say "I'm here!" containing MAC address and payload data.
-*   **RSSI (Received Signal Strength Indicator):** Used to estimate distance.
-    *   `-40` to `-55`: Very Close (< 1m)
-    *   `-90`: Limit of detection
-*   **Manufacturer Data:** Often reveals the brand (Apple, Microsoft, etc.) even if the device name is hidden.
-*   **UUIDs:** Unique identifiers defining device capabilities (Heart Rate monitor, Battery service, etc.).
 
 ## Disclaimer
-This tool is for educational and research purposes only. Always respect privacy and applicable laws when monitoring wireless traffic.
+This tool is for educational and security research purposes only. Always respect privacy and applicable laws when monitoring wireless traffic.

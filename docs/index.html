@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueSentry Documentation</title>
+    <style>
+        :root {
+            --bg-color: #0f172a;
+            --text-color: #e2e8f0;
+            --accent-color: #38bdf8;
+            --secondary-bg: #1e293b;
+            --code-bg: #000000;
+            --success: #22c55e;
+            --warning: #eab308;
+            --danger: #ef4444;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+        }
+
+        /* Layout */
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        header {
+            border-bottom: 1px solid #334155;
+            padding-bottom: 2rem;
+            margin-bottom: 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            margin: 0;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            color: var(--accent-color);
+            border-bottom: 1px solid #334155;
+            padding-bottom: 0.5rem;
+            margin-top: 3rem;
+        }
+
+        h3 {
+            color: #94a3b8;
+            margin-top: 2rem;
+        }
+
+        /* Components */
+        .card {
+            background-color: var(--secondary-bg);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid #334155;
+        }
+
+        code {
+            font-family: 'Consolas', 'Monaco', monospace;
+            background-color: #334155;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+            color: #fff;
+        }
+
+        pre {
+            background-color: var(--code-bg);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            border: 1px solid #334155;
+        }
+
+        pre code {
+            background-color: transparent;
+            padding: 0;
+            color: #a5b4fc;
+        }
+
+        .btn {
+            display: inline-block;
+            background-color: var(--accent-color);
+            color: #0f172a;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.25rem;
+            text-decoration: none;
+            font-weight: bold;
+            margin-right: 1rem;
+            transition: opacity 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        /* Terminal Simulator */
+        .terminal {
+            background-color: #0c0c0c;
+            border-radius: 0.5rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            font-family: 'Consolas', monospace;
+            margin: 2rem 0;
+            border: 1px solid #333;
+        }
+
+        .terminal-header {
+            background-color: #1f1f1f;
+            padding: 0.5rem 1rem;
+            border-top-left-radius: 0.5rem;
+            border-top-right-radius: 0.5rem;
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .dot { width: 12px; height: 12px; border-radius: 50%; }
+        .red { background-color: #ff5f56; }
+        .yellow { background-color: #ffbd2e; }
+        .green { background-color: #27c93f; }
+
+        .terminal-body {
+            padding: 1.5rem;
+            color: #cccccc;
+            font-size: 0.9rem;
+        }
+
+        .prompt { color: #22c55e; }
+        .cmd { color: #fff; }
+        .output-blue { color: #38bdf8; }
+        .output-green { color: #22c55e; }
+        .output-dim { color: #64748b; }
+        .output-red { color: #ef4444; }
+
+        /* Feature Grid */
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .feature-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        footer {
+            margin-top: 4rem;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <header>
+        <div>
+            <h1>BlueSentry</h1>
+            <p>Advanced BLE Surveillance & Tracking Suite</p>
+        </div>
+        <div>
+            <a href="https://github.com/your-repo" class="btn">View on GitHub</a>
+        </div>
+    </header>
+
+    <div class="terminal">
+        <div class="terminal-header">
+            <div class="dot red"></div>
+            <div class="dot yellow"></div>
+            <div class="dot green"></div>
+        </div>
+        <div class="terminal-body">
+            <span class="prompt">user@linux:~$</span> <span class="cmd">sudo bluesentry --duration 10</span><br><br>
+            <span class="output-yellow">Initializing BlueSentry System...</span><br>
+            <span class="output-dim">Duration: 10s | Output: None</span><br><br>
+            
+            <div style="border: 1px solid #333; padding: 10px; margin: 10px 0;">
+                <span class="output-blue">BlueSentry Live Feed</span><br>
+                ------------------------------------------------<br>
+                ID&nbsp;&nbsp;Address&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;RSSI&nbsp;&nbsp;&nbsp;Name/Manufacturer<br>
+                1&nbsp;&nbsp;&nbsp;AA:BB:CC:11:22&nbsp;&nbsp;&nbsp;<span class="output-green">-45</span>&nbsp;&nbsp;&nbsp;Ray's iPhone (<span class="output-blue">Apple AirDrop</span>)<br>
+                2&nbsp;&nbsp;&nbsp;11:22:33:44:55&nbsp;&nbsp;&nbsp;<span class="output-yellow">-72</span>&nbsp;&nbsp;&nbsp;Unknown (<span class="output-blue">Fitbit, Inc.</span>)<br>
+                3&nbsp;&nbsp;&nbsp;99:88:77:66:55&nbsp;&nbsp;&nbsp;<span class="output-red">-91</span>&nbsp;&nbsp;&nbsp;Living Room TV<br>
+            </div>
+            
+            <span class="output-green">Scan Complete. Log saved to sentry_log_20260130.csv</span>
+        </div>
+    </div>
+
+    <section id="features">
+        <h2>Key Capabilities</h2>
+        <div class="grid">
+            <div class="card">
+                <div class="feature-icon">📡</div>
+                <h3>Live Radar</h3>
+                <p>Visualizes devices in real-time. Signals are mapped to a text-based radar interface, helping you understand proximity at a glance.</p>
+            </div>
+            <div class="card">
+                <div class="feature-icon">🕵️</div>
+                <h3>De-Anonymization</h3>
+                <p>Identifies vendors (Apple, Microsoft, Garmin) even when devices hide their names. Detects specific Apple protocols like AirDrop and Find My.</p>
+            </div>
+            <div class="card">
+                <div class="feature-icon">🐕</div>
+                <h3>Bloodhound</h3>
+                <p>Lock onto a specific target. The dedicated tracker module provides a live signal graph and "Hot/Cold" alerts for physical location.</p>
+            </div>
+        </div>
+    </section>
+
+    <section id="installation">
+        <h2>Installation</h2>
+        <p>BlueSentry is built with Python 3.8+. It relies on <code>bleak</code> for Bluetooth access and <code>rich</code> for the UI.</p>
+        
+        <h3>Quick Install</h3>
+        <pre><code>git clone https://github.com/your-repo/bluesentry.git
+cd bluesentry
+pip install .</code></pre>
+
+        <p class="output-dim">Note: On Linux, you usually need <code>sudo</code> to access the Bluetooth adapter.</p>
+    </section>
+
+    <section id="usage">
+        <h2>Usage Guide</h2>
+        
+        <h3>1. The Scanner</h3>
+        <p>The primary tool for area surveillance.</p>
+        <pre><code># Standard 20-second scan
+sudo bluesentry
+
+# Scan for 1 minute and save to a custom file
+sudo bluesentry --duration 60 --output myscan.csv
+
+# Passive Mode (No UI, background logging)
+sudo bluesentry --passive</code></pre>
+
+        <h3>2. The Tracker (Bloodhound)</h3>
+        <p>Used to physically locate a specific device.</p>
+        <pre><code># Replace with your target's MAC address
+sudo python3 tracker.py AA:BB:CC:11:22:33</code></pre>
+        <ul>
+            <li><strong class="output-green">-40 dBm:</strong> Very Close (< 1m)</li>
+            <li><strong class="output-yellow">-70 dBm:</strong> Nearby (Same room)</li>
+            <li><strong class="output-red">-90 dBm:</strong> Weak Signal (Limit of range)</li>
+        </ul>
+    </section>
+
+    <section id="troubleshooting">
+        <h2>Troubleshooting</h2>
+        <div class="card">
+            <h3>"Bluetooth Adapter Not Found"</h3>
+            <p>Ensure your Bluetooth is turned on and not blocked by rfkill.</p>
+            <pre><code>sudo rfkill unblock bluetooth
+sudo systemctl start bluetooth</code></pre>
+        </div>
+    </section>
+
+    <footer>
+        <p>BlueSentry Project &copy; 2026. For Educational Use Only.</p>
+    </footer>
+</div>
+
+</body>
+</html>
