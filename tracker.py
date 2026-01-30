@@ -71,9 +71,20 @@ def get_proximity_alert(rssi):
     else:
         return Panel("[dim] WEAK / LOST SIGNAL [/dim]", title="Proximity", border_style="dim")
 
-async def run_tracker(address):
+async def start_tracker(address):
+    """
+    Starts the tracker for a specific MAC address.
+    Can be called from other scripts.
+    """
     global TARGET_MAC
     TARGET_MAC = address
+    
+    # Clear internal history for a fresh start
+    rssi_history.clear()
+    timestamps.clear()
+    target_device["rssi"] = -100
+    target_device["last_seen"] = 0
+    target_device["name"] = "Unknown"
 
     # Setup Rich Layout
     layout = Layout()
@@ -102,6 +113,8 @@ async def run_tracker(address):
                 await asyncio.sleep(0.2)
     except KeyboardInterrupt:
         pass
+    except asyncio.CancelledError:
+        pass
     finally:
         await scanner.stop()
         console.print("[bold red]Tracker Stopped.[/bold red]")
@@ -112,4 +125,7 @@ if __name__ == "__main__":
         sys.exit(1)
     
     target_mac = sys.argv[1]
-    asyncio.run(run_tracker(target_mac))
+    try:
+        asyncio.run(start_tracker(target_mac))
+    except KeyboardInterrupt:
+        pass

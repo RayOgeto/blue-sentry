@@ -1,12 +1,23 @@
 import asyncio
 import sys
+import csv
+import math
+import time
+from datetime import datetime
+
 from bleak import BleakScanner, BleakClient
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from rich.prompt import Prompt
 from rich import box
-import time
+from rich.layout import Layout
+from rich.panel import Panel
+from rich.align import Align
+from rich.text import Text
+
+import vendors  # Our database
+import tracker  # Our tracking module
 
 # Initialize Rich Console
 console = Console()
@@ -14,176 +25,326 @@ console = Console()
 # Dictionary to store detected devices: {address: {data...}}
 detected_devices = {}
 
-# Common Bluetooth UUIDs for interrogation
-UUID_MAP = {
-    "00001800-0000-1000-8000-00805f9b34fb": "Generic Access",
-    "00001801-0000-1000-8000-00805f9b34fb": "Generic Attribute",
-    "0000180a-0000-1000-8000-00805f9b34fb": "Device Information",
-    "0000180f-0000-1000-8000-00805f9b34fb": "Battery Service",
-    "0000180d-0000-1000-8000-00805f9b34fb": "Heart Rate",
-    "00002a00-0000-1000-8000-00805f9b34fb": "Device Name",
-    "00002a19-0000-1000-8000-00805f9b34fb": "Battery Level",
-    "00002a29-0000-1000-8000-00805f9b34fb": "Manufacturer Name String",
-    "00002a24-0000-1000-8000-00805f9b34fb": "Model Number String",
-}
-
 def process_device(device, advertisement_data):
     """
     Callback function that triggers whenever a BLE device is seen.
-    It parses the raw data into a readable format.
+    Parses raw data into a readable format and applies heuristics.
     """
     
-    # 1. Device Name: Often "Unknown" if the device relies on Scan Response to give its name
+    # 1. Device Name
     dev_name = device.name or advertisement_data.local_name or "Unknown"
     
-    # 2. RSSI: Signal Strength.
+    # 2. RSSI
     rssi = advertisement_data.rssi or -100
     
-    # 3. Manufacturer Data: The "Secret Sauce"
+    # 3. Manufacturer Analysis (De-Anonymization)
     manufacturer = "Unknown"
-    if advertisement_data.manufacturer_data:
-        m_id = list(advertisement_data.manufacturer_data.keys())[0]
-        if m_id == 76:
-            manufacturer = "Apple (iBeacon/AirTag?)"
-        elif m_id == 6:
-            manufacturer = "Microsoft"
-        elif m_id == 117:
-            manufacturer = "Samsung"
+    man_data_raw = advertisement_data.manufacturer_data
+    
+    if man_data_raw:
+        m_id = list(man_data_raw.keys())[0]
+        m_bytes = man_data_raw[m_id]
+        
+        if m_id == 76: # Apple
+            manufacturer = vendors.identify_apple_device(m_bytes)
         else:
-            manufacturer = f"ID: {m_id}"
+            manufacturer = vendors.COMPANY_IDS.get(m_id, f"ID: {m_id}")
 
-    # 4. Service UUIDs: Hints at what the device DOES
+    # 4. Service UUIDs
     services = [str(s) for s in advertisement_data.service_uuids]
-    service_hint = "Generic"
-    if "0000180d-0000-1000-8000-00805f9b34fb" in services:
-        service_hint = "[red]Heart Rate[/red]"
-    elif "0000180f-0000-1000-8000-00805f9b34fb" in services:
-        service_hint = "[yellow]Battery[/yellow]"
-    elif "0000110b-0000-1000-8000-00805f9b34fb" in services:
-        service_hint = "[blue]Audio Sink[/blue]"
+    service_hints = []
+    
+    for s in services:
+        if s in vendors.SERVICE_UUIDS:
+            name = vendors.SERVICE_UUIDS[s]
+            if "Heart Rate" in name: service_hints.append("[red]Heart Rate[/red]")
+            elif "Battery" in name: service_hints.append("[yellow]Battery[/yellow]")
+            elif "Human Interface" in name: service_hints.append("[magenta]HID[/magenta]")
+            elif "Google" in name: service_hints.append("[blue]Fast Pair[/blue]")
+            elif "Tile" in name: service_hints.append("[green]Tile[/green]")
+            elif "Exposure" in name: service_hints.append("[bold white on red]COVID[/bold white on red]")
+            else: service_hints.append(name.split(" ")[0])
+            
+    service_str = ", ".join(service_hints) if service_hints else ""
 
-    # Store/Update the device data
+    # 5. Privacy Check
+    try:
+        first_byte = int(device.address.split(":")[0], 16)
+        is_random = (first_byte & 0x02) == 0x02
+        privacy_status = "[green]RAND[/green]" if is_random else "[red]PUBLIC[/red]"
+    except:
+        privacy_status = "?"
+
+    # Store/Update
     detected_devices[device.address] = {
         "Time": time.strftime("%H:%M:%S"),
         "Name": dev_name,
         "RSSI": rssi,
         "Manufacturer": manufacturer,
-        "Services": service_hint,
-        "DeviceObj": device  # Keep the object for connecting later
+        "Services": service_str,
+        "Privacy": privacy_status,
+        "RawData": man_data_raw  # For logging
     }
 
+def generate_radar_view():
+    """
+    Creates a text-based 'Radar' visualization.
+    We map RSSI to distance from center.
+    """
+    # Canvas size
+    width = 60
+    height = 15
+    center_x = width // 2
+    center_y = height // 2
+    
+    # Create an empty grid
+    grid = [[" " for _ in range(width)] for _ in range(height)]
+    
+    # Draw crosshairs
+    for x in range(width): grid[center_y][x] = "-"
+    for y in range(height): grid[y][center_x] = "|"
+    grid[center_y][center_x] = "[bold white]@[/bold white]" # You are here
+    
+    # Plot devices
+    sorted_devices = sorted(detected_devices.items(), key=lambda x: x[1]['RSSI'], reverse=True)
+    
+    # Limit to top 10 strongest signals to avoid clutter
+    for i, (addr, data) in enumerate(sorted_devices[:10]):
+        rssi = data['RSSI']
+        
+        # Normalize RSSI (-100 to -30) to distance (0 to 1)
+        # Stronger signal (-30) = Closer (0 distance)
+        # Weaker signal (-100) = Farther (1 distance)
+        dist_factor = (rssi + 30) / -70.0 
+        dist_factor = max(0, min(1, dist_factor))
+        
+        # Calculate visuals
+        # We vary angle based on index to spread them out visually (fake angle)
+        angle = (i * (2 * 3.14159)) / min(len(sorted_devices), 10)
+        
+        # Radius in characters
+        radius_x = dist_factor * (width // 2 - 2)
+        radius_y = dist_factor * (height // 2 - 1)
+        
+        pos_x = int(center_x + radius_x * math.cos(angle))
+        pos_y = int(center_y + radius_y * math.sin(angle))
+        
+        # Clamp
+        pos_x = max(0, min(width - 1, pos_x))
+        pos_y = max(0, min(height - 1, pos_y))
+        
+        # Marker
+        symbol = str(i + 1) # ID number
+        color = "green" if rssi > -60 else "yellow" if rssi > -80 else "red"
+        
+        grid[pos_y][pos_x] = f"[{color}]{symbol}[/{color}]"
+
+    # Convert grid to string
+    radar_str = ""
+    for row in grid:
+        radar_str += "".join(row) + "\n"
+        
+    return Panel(Align.center(radar_str), title="[bold green]RADAR (Proximity Visualization)[/bold green]", box=box.ROUNDED)
+
 def generate_table():
-    """Generates the Rich Table for the Live Display."""
-    table = Table(title="BlueSentry: Live Bluetooth Analyzer", box=box.SIMPLE_HEAVY)
+    """Generates the Rich Table."""
+    table = Table(box=box.SIMPLE, show_header=True, header_style="bold blue")
 
-    table.add_column("ID", style="bold cyan", width=3)
-    table.add_column("Address (MAC)", style="cyan")
+    table.add_column("ID", width=3)
+    table.add_column("Address", style="dim")
+    table.add_column("T", width=4, justify="center") # Type
     table.add_column("RSSI", justify="right")
-    table.add_column("Device Name", style="green")
-    table.add_column("Manufacturer", style="magenta")
-    table.add_column("Analysis", style="bold white")
+    table.add_column("Name / Manufacturer", style="white")
+    table.add_column("Tags", style="dim")
 
-    # Sort by RSSI (Strongest signal on top)
     sorted_devices = sorted(detected_devices.items(), key=lambda x: x[1]['RSSI'], reverse=True)
 
     for idx, (address, data) in enumerate(sorted_devices):
-        # Color code RSSI
         rssi_val = data['RSSI']
         rssi_color = "green" if rssi_val > -60 else "yellow" if rssi_val > -80 else "red"
         
+        # Combine Name and Manufacturer for compact view
+        name_display = data['Name']
+        if data['Manufacturer'] != "Unknown":
+            name_display += f" ([cyan]{data['Manufacturer']}[/cyan])"
+            
         table.add_row(
             str(idx + 1),
             address,
-            f"[{rssi_color}]{rssi_val} dBm[/{rssi_color}]",
-            data['Name'],
-            data['Manufacturer'],
+            data['Privacy'].replace("RAND", "R").replace("PUBLIC", "P"),
+            f"[{rssi_color}]{rssi_val}[/{rssi_color}]",
+            name_display,
             data['Services']
         )
     return table
 
-async def interrogate_target(address):
-    """Connects to a specific target and dumps GATT table."""
-    console.print(f"\n[bold yellow][*] Interrogating Target:[/bold yellow] {address}")
-    console.print("[dim]Connecting... (This may take a few seconds)[/dim]")
+def get_layout():
+    layout = Layout()
+    layout.split_column(
+        Layout(name="top", ratio=2),
+        Layout(name="bottom", ratio=1)
+    )
+    layout["top"].update(Panel(generate_table(), title="BlueSentry Live Feed", border_style="blue"))
+    layout["bottom"].update(generate_radar_view())
+    return layout
 
-    try:
-        async with BleakClient(address) as client:
-            console.print(f"[bold green][+] Connected successfully![/bold green]")
-            console.print(f"    Paired: {client.is_connected}")
+import argparse
 
-            console.print("\n[bold white][*] Dumping Service Table:[/bold white]")
-            for service in client.services:
-                service_name = UUID_MAP.get(str(service.uuid), "Unknown Service")
-                console.print(f"\n[bold cyan]SERVICE:[/bold cyan] {service.uuid} ({service_name})")
-                
-                for char in service.characteristics:
-                    char_name = UUID_MAP.get(str(char.uuid), "Unknown Characteristic")
-                    props = ",".join(char.properties)
-                    console.print(f"  └── [yellow]CHAR:[/yellow] {char.uuid} ({char_name})")
-                    console.print(f"      Properties: [{props}]")
+# ... (Imports remain the same) ...
 
-                    if "read" in char.properties:
-                        try:
-                            value = await client.read_gatt_char(char.uuid)
-                            try:
-                                decoded_val = value.decode('utf-8')
-                            except:
-                                decoded_val = f"HEX: {value.hex()}"
-                            console.print(f"      >>> [bold green]VALUE LEAKED:[/bold green] {decoded_val}")
-                        except Exception as e:
-                            console.print(f"      >>> [dim]Read Failed (Protected)[/dim]")
+# [Keep existing helper functions: process_device, generate_radar_view, generate_table, get_layout, save_log, interrogate_target]
 
-    except Exception as e:
-        console.print(f"[bold red][-] Connection Failed:[/bold red] {e}")
-        console.print("[dim]Note: Device might be out of range or rejecting connections.[/dim]")
-
-async def run_scan():
-    """Main async loop."""
-    console.print("[bold yellow]Starting BlueSentry Scanner (15s)...[/bold yellow]")
+async def run_scan(args):
+    console.print(f"[bold yellow]Initializing BlueSentry System...[/bold yellow]")
+    console.print(f"[dim]Mode: {'Passive (No Interaction)' if args.passive else 'Interactive'}[/dim]")
+    console.print(f"[dim]Duration: {args.duration}s | Output: {args.output}[/dim]")
     
     scanner = BleakScanner(detection_callback=process_device)
-    await scanner.start()
     
-    # Run the live display
-    with Live(generate_table(), refresh_per_second=4) as live:
-        try:
-            start_time = time.time()
-            while time.time() - start_time < 15:
-                live.update(generate_table())
+    try:
+        await scanner.start()
+        
+        # Determine loop duration
+        start_t = time.time()
+        end_t = start_t + args.duration
+        
+        with Live(get_layout(), refresh_per_second=4, screen=True) as live:
+            while time.time() < end_t:
+                live.update(get_layout())
                 await asyncio.sleep(0.5)
-        except KeyboardInterrupt:
-            pass
-        finally:
+                
+    except KeyboardInterrupt:
+        console.print("\n[bold yellow]Scan interrupted by user.[/bold yellow]")
+    except Exception as e:
+        console.print(f"\n[bold red]CRITICAL ERROR:[/bold red] {e}")
+    finally:
+        try:
             await scanner.stop()
-            console.print("\n[bold green]Scan Complete.[/bold green]")
+        except:
+            pass
+        
+        # AUTO-SAVE LOG (Crash Safe)
+        # We pass the custom filename if provided
+        save_log_to_file(args.output) 
 
-    # Interactive Menu
-    sorted_devices = sorted(detected_devices.items(), key=lambda x: x[1]['RSSI'], reverse=True)
+    # POST SCAN MENU (Only if not passive)
+    if not args.passive:
+        await show_interactive_menu()
+
+def save_log_to_file(filename=None):
+    """Saves the session to a CSV file."""
+    if not filename:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"sentry_log_{timestamp}.csv"
     
-    if not sorted_devices:
+    try:
+        with open(filename, 'w', newline='') as f:
+            writer = csv.writer(f)
+            writer.writerow(["Address", "Name", "Manufacturer", "Last RSSI", "Services", "Privacy"])
+            
+            for addr, data in detected_devices.items():
+                writer.writerow([
+                    addr, 
+                    data['Name'], 
+                    data['Manufacturer'], 
+                    data['RSSI'], 
+                    data['Services'],
+                    data['Privacy']
+                ])
+        console.print(f"[bold green]Session Log Saved:[/bold green] {filename}")
+    except Exception as e:
+        console.print(f"[bold red]Failed to save log:[/bold red] {e}")
+
+async def show_interactive_menu():
+    console.clear()
+    console.print(Panel("[bold]Scan Complete[/bold]", style="green"))
+    
+    sorted_devs = sorted(detected_devices.items(), key=lambda x: x[1]['RSSI'], reverse=True)
+    if not sorted_devs: 
         console.print("No devices found.")
         return
 
-    console.print("\n[bold]Post-Scan Actions:[/bold]")
-    console.print("Enter the [bold cyan]ID[/bold cyan] of a device to interrogate, or [bold]0[/bold] to exit.")
-    
-    choice = Prompt.ask("Selection")
-    
-    if choice.isdigit():
-        idx = int(choice) - 1
-        if 0 <= idx < len(sorted_devices):
-            target_mac = sorted_devices[idx][0]
+    while True:
+        console.print("\n[bold cyan]ACTIONS:[/bold cyan]")
+        console.print("1. [bold white]Interrogate[/bold white] (Connect & Dump Info)")
+        console.print("2. [bold red]BLOODHOUND[/bold red] (Track Signal Strength)")
+        console.print("0. Exit")
+        
+        choice = Prompt.ask("Select Action", choices=["1", "2", "0"])
+        
+        if choice == "0":
+            break
+            
+        target_idx = Prompt.ask("Enter Device ID from last scan")
+        if not target_idx.isdigit(): continue
+        
+        idx = int(target_idx) - 1
+        if not (0 <= idx < len(sorted_devs)): 
+            console.print("[red]Invalid ID[/red]")
+            continue
+            
+        target_mac = sorted_devs[idx][0]
+        
+        if choice == "1":
             await interrogate_target(target_mac)
-        else:
-            console.print("Exiting.")
-    else:
-        console.print("Invalid selection.")
+        elif choice == "2":
+            # Launch Tracker
+            try:
+                await tracker.start_tracker(target_mac)
+            except KeyboardInterrupt:
+                pass
 
-if __name__ == "__main__":
+# ... (Imports)
+
+BANNER = r"""
+[bold blue]
+    ____  __            _____            __
+   / __ )/ /_  _____   / ___/___  ____  / /________  __
+  / __  / / / / / _ \  \__ \/ _ \/ __ \/ __/ ___/ / / /
+ / /_/ / / /_/ /  __/ ___/ /  __/ / / / /_/ /  / /_/ /
+/_____/_/\__,_/\___/ /____/\___/_/ /_/\__/_/   \__, /
+                                              /____/
+[/bold blue][dim]       v1.0.0 | Production Ready | @BlueSentryTeam[/dim]
+"""
+
+# ... (Previous code remains until main_entry)
+
+def main_entry():
+    # Custom Help Formatter to allow newlines in description
+    parser = argparse.ArgumentParser(
+        description="BlueSentry: Advanced BLE Scanner, Analyzer & Tracker",
+        formatter_class=argparse.RawTextHelpFormatter,
+        epilog="""[bold]EXAMPLES:[/bold]
+  [green]1. Standard Scan (20s):[/green]
+     sudo bluesentry
+
+  [green]2. Long Scan (60s) with custom log file:[/green]
+     sudo bluesentry --duration 60 --output results.csv
+
+  [green]3. Passive Mode (Background Surveillance):[/green]
+     sudo bluesentry --passive --duration 3600
+
+  [green]4. Track a specific device (Bloodhound):[/green]
+     sudo python3 tracker.py AA:BB:CC:11:22:33
+"""
+    )
+    
+    parser.add_argument("-t", "--duration", type=int, default=20, help="Scan duration in seconds (default: 20)")
+    parser.add_argument("-o", "--output", type=str, help="Output CSV filename (default: sentry_log_TIMESTAMP.csv)")
+    parser.add_argument("-p", "--passive", action="store_true", help="Run in passive mode (no interactive menu, just log)")
+    
+    args = parser.parse_args()
+
+    # Print Banner
+    console.print(BANNER)
+
     try:
-        asyncio.run(run_scan())
+        asyncio.run(run_scan(args))
+# ... (Rest of file)
     except KeyboardInterrupt:
         pass
     except Exception as e:
-        console.print(f"[bold red]Error:[/bold red] {e}")
-        console.print("[dim]Note: You might need to run this with 'sudo' on Linux.[/dim]")
+        console.print(f"[red]Fatal Error:[/red] {e}")
+
+if __name__ == "__main__":
+    main_entry()
