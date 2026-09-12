@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "bluesentry"
+version = "1.0.0"
+description = "Advanced Bluetooth Low Energy (BLE) Scanner, Analyzer & Tracker"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "BlueSentry Team"}
+]
+keywords = ["bluetooth", "ble", "scanner", "tracker", "security", "privacy", "interrogator"]
+dependencies = [
+    "bleak>=2.0.0",
+    "rich>=13.0.0",
+    "plotext>=5.2.0"
+]
+
+[project.scripts]
+bluesentry = "scanner:main_entry"
+
+[tool.setuptools]
+py-modules = ["scanner", "tracker", "vendors", "interrogator"]
