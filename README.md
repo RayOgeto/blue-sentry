@@ -1,105 +1,154 @@
-# BlueSentry
+# BlueSentry™
 
-**BlueSentry** is an advanced, production-ready Bluetooth Low Energy (BLE) scanner, analyzer, and tracker. It goes beyond simple scanning by providing real-time "Radar" visualization, detailed device fingerprinting (including Apple "Continuity" protocol analysis), and a built-in signal tracker ("Bloodhound" mode).
+**Advanced Bluetooth Low Energy (BLE) Surveillance, Forensics & Proximity Tracking Suite**
 
-![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen)
-![Python](https://img.shields.io/badge/Python-3.8+-blue)
+[![Status](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](#)
+[![Python Version](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](#)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](#)
+[![Manual](https://img.shields.io/badge/Docs-Enterprise%20Manual-orange.svg)](USER_MANUAL.md)
+[![Man Page](https://img.shields.io/badge/Man%20Page-bluesentry(1)-lightgrey.svg)](docs/bluesentry.1)
 
-## Features
+**BlueSentry** is a high-performance, passive Bluetooth Low Energy (BLE) reconnaissance, auditing, and telemetry engine. Operating directly on top of the Linux BlueZ D-Bus layer, it captures and analyzes over-the-air GAP advertising broadcasts without establishing connections, pair requests, or emitting radio transmissions.
 
-### 📡 Advanced Scanner (`bluesentry`)
-*   **Live Radar Visualization:** A real-time, text-based radar display showing nearby devices relative to your position based on signal strength.
-*   **Privacy Analysis:** Automatically detects if a device is using a **Randomized** (Private) or **Public** (Trackable) MAC address.
-*   **De-Anonymization:** Identifies specific Apple devices (AirTags, AirPods, AirDrop, etc.) and other major brands (Fitbit, Tile, Garmin) even when they don't broadcast a name.
-*   **Sentry Mode (Auto-Logging):** Every scan automatically saves a CSV log of all detected devices, ensuring no data is lost even if the app crashes.
+The suite de-anonymizes proprietary vendor frames (including Apple Continuity, AirDrop, and Find My networks), classifies IEEE 802 MAC address privacy schemes, performs deep GATT attribute interrogation, and physically locates targets using an Exponential Moving Average (EMA) stabilized RSSI tracking radar.
 
-### 🐕 Bloodhound Tracker
-*   **Signal Tracking:** A "Hot/Cold" game for physical device location.
-*   **Graphing:** Live RSSI graph to visualize signal trends.
-*   **Proximity Alerts:** Visual alerts when you are "Very Close" to the target.
+---
 
-### 🔬 Interrogator
-*   **Deep Inspection:** Connects to devices to dump their GATT Service Table.
-*   **Data Leaks:** Attempts to read standard characteristics to find exposed data (Device Name, Battery Level, etc.).
+## 📖 Documentation & Technical References
 
-## Installation
+* 📘 **[Production Operations & Technical Reference Manual (USER_MANUAL.md)](USER_MANUAL.md)**: Deep dive into BLE GAP/GATT architecture, radio path loss physics, 24/7 systemd sentry deployment, and SIEM ingestion.
+* 📄 **[Unix Man Page (`docs/bluesentry.1`)](docs/bluesentry.1)**: Formal system manual formatted in standard troff/groff format (`man -l docs/bluesentry.1`).
+* 🌐 **[Interactive Web Documentation (`docs/index.html`)](docs/index.html)**: Browser-based visual terminal demonstration and guide.
 
-### Option 1: Quick Run (No Install)
+---
+
+## ⚡ Key Capabilities
+
+```
++---------------------------------------------------------------------------------+
+|                                BLUESENTRY SUITE                                 |
++------------------------------------+--------------------------------------------+
+| 📡 Passive BLE Scanner             | 🐕 Bloodhound Signal Tracker               |
+| - Zero-transmission GAP monitoring | - Targeted BD_ADDR signal lock             |
+| - Real-time RSSI-proximity radar   | - EMA noise-filtering (alpha = 0.35)       |
+| - IEEE MAC randomization detection | - Live plotext terminal trend graphing     |
++------------------------------------+--------------------------------------------+
+| 🔬 GATT Attribute Interrogator     | 🛡️ Security Hardening & 24/7 Sentry         |
+| - Full GATT hierarchy tree dump    | - Native Linux capabilities (non-root)     |
+| - Readable characteristic crawler  | - Systemd service & logrotate daemon       |
+| - Safe connection timeouts (12s)   | - Clean CSV telemetry logging (no ANSI)    |
++------------------------------------+--------------------------------------------+
+```
+
+---
+
+## 🚀 Quick Start
+
+### 1. Installation
+
 ```bash
-# Clone the repo
-git clone <repository_url>
-cd bluesentry
+# Clone the repository
+git clone https://github.com/RayOgeto/blue-sentry.git
+cd blue-sentry
+
+# Create and activate an isolated virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Run
-sudo python3 scanner.py
-```
-
-### Option 2: System-Wide Installation
-Install BlueSentry as a command-line tool accessible from anywhere.
-
-```bash
-# From within the project directory
+# (Optional) Install globally as a CLI command
 pip install .
-
-# Now you can run it simply by typing:
-sudo bluesentry
 ```
 
-*Note: On Linux, accessing the Bluetooth adapter usually requires root privileges (`sudo`).*
+### 2. Hardening (Non-Root Execution via `setcap`)
 
-## Usage Guide
-
-### 1. The Scanner
-The main tool for discovering devices.
-
-**Basic Scan (20 seconds):**
-```bash
-sudo bluesentry
-```
-
-**Custom Duration (e.g., 60 seconds):**
-```bash
-sudo bluesentry --duration 60
-```
-
-**Passive Mode (No UI, just logging):**
-Ideal for background monitoring.
-```bash
-sudo bluesentry --passive --output night_scan.csv
-```
-
-**Command Line Arguments:**
-*   `-t`, `--duration`: Scan duration in seconds (default: 20).
-*   `-o`, `--output`: Custom CSV filename for the log.
-*   `-p`, `--passive`: Run without the interactive menu (logs data and exits).
-
-### 2. Post-Scan Actions
-After an interactive scan finishes, you will see a menu:
-1.  **Interrogate:** Select a device ID to connect and inspect its services.
-2.  **BLOODHOUND:** Select a device ID to immediately launch the signal tracker.
-
-### 3. Standalone Tools
-You can also run the modules individually if you already have a target MAC address.
-
-**Tracker:**
-```bash
-sudo python3 tracker.py AA:BB:CC:11:22:33
-```
-
-**Interrogator:**
-```bash
-sudo python3 interrogator.py AA:BB:CC:11:22:33
-```
-
-## Running Tests
-To verify the internal logic (Vendor database, Apple identification, etc.):
+> [!TIP]
+> In production and lab environments, **do not run BlueSentry with `sudo`**. Grant raw network socket capabilities directly to your Python binary:
 
 ```bash
-python3 -m unittest discover tests
+# Grant Linux network capabilities
+sudo setcap 'cap_net_raw,cap_net_admin+eip' $(readlink -f $(which python3))
+
+# Add user to bluetooth group
+sudo usermod -aG bluetooth $USER
+newgrp bluetooth
 ```
 
-## Disclaimer
-This tool is for educational and security research purposes only. Always respect privacy and applicable laws when monitoring wireless traffic.
+### 3. Usage Examples
+
+#### Run Live Interactive Surveillance (20 seconds):
+```bash
+bluesentry
+```
+
+#### Headless 24/7 Monitoring (Surveillance Daemon):
+```bash
+bluesentry --passive --duration 86400 --output /var/log/bluesentry/overnight.csv
+```
+
+#### Target Track a Specific Device (Bloodhound):
+```bash
+python3 tracker.py AA:BB:CC:11:22:33
+```
+
+#### Interrogate Exposed GATT Services:
+```bash
+python3 interrogator.py AA:BB:CC:11:22:33
+```
+
+---
+
+## 📋 Command Line Interface
+
+```text
+usage: bluesentry [-h] [-t DURATION] [-o OUTPUT] [-p]
+
+BlueSentry: Advanced BLE Scanner, Analyzer & Tracker
+
+options:
+  -h, --help            show this help message and exit
+  -t, --duration DURATION
+                        Scan duration in seconds (default: 20)
+  -o, --output OUTPUT   Output CSV filename (default: sentry_log_TIMESTAMP.csv)
+  -p, --passive         Run in passive headless mode (no TUI, just log)
+```
+
+---
+
+## 📊 Output Data Schema
+
+Every session automatically records telemetry to a clean, pure CSV file formatted for direct ingestion into SIEM platforms or Pandas:
+
+| Column Name | Type | Description |
+| :--- | :--- | :--- |
+| `Address` | String | Hardware BD_ADDR or OS UUID identifier. |
+| `Name` | String | Broadcasted local device name or `"Unknown"`. |
+| `Manufacturer` | String | Identified vendor or Apple Continuity protocol tag. |
+| `Last RSSI` | Integer | Last received signal power in dBm. |
+| `Services` | String | Recognized GATT Service names separated by semicolons. |
+| `Address Type` | String | `"Public (Trackable)"`, `"Resolvable Private (RPA)"`, etc. |
+| `Is Randomized`| String | `"Yes"` (privacy active), `"No"` (static/trackable), or `"Unknown"`.|
+| `First Seen` | String | Session timestamp when device was first captured (`HH:MM:SS`). |
+| `Last Seen` | String | Timestamp of most recently received advertisement frame. |
+
+---
+
+## 🧪 Verification & Testing
+
+Verify internal vendor resolution, packet parsers, and EMA smoothing:
+```bash
+python3 -m unittest discover tests -v
+```
+
+View the system manual page:
+```bash
+man -l docs/bluesentry.1
+```
+
+---
+
+## ⚖️ License & Ethical Use
+
+Distributed under the MIT License. Designed for authorized security assessments, network defense, and academic research. Users are responsible for complying with applicable local radio spectrum and privacy regulations.

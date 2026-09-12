@@ -1,0 +1,72 @@
+.TH BLUESENTRY 1 "September 2026" "BlueSentry 1.0.0" "System Maintenance & Security Tools"
+.SH NAME
+bluesentry \- Advanced Bluetooth Low Energy (BLE) passive scanner, analyzer, and signal tracker
+
+.SH SYNOPSIS
+.B bluesentry
+[\fB\-h\fR]
+[\fB\-t\fR \fIduration\fR]
+[\fB\-o\fR \fIoutput_file\fR]
+[\fB\-p\fR]
+
+.SH DESCRIPTION
+.B BlueSentry
+is a high-performance passive Bluetooth Low Energy (BLE) reconnaissance, auditing, and telemetry application. It operates by capturing over-the-air BLE advertising packets (GAP broadcasts) without pairing or active transmission.
+.PP
+The application extracts payload telemetry including IEEE MAC address privacy flags, proprietary vendor protocol headers (such as Apple Continuity and AirDrop), and Received Signal Strength Indicator (RSSI) proximity metrics.
+.PP
+In addition to live passive surveillance, BlueSentry includes an interactive GATT interrogator and a targeted signal tracker (\fIBloodhound\fR) equipped with Exponential Moving Average (EMA) signal stabilization.
+
+.SH OPTIONS
+.TP
+.BR \-t ", " \-\-duration " \fIseconds\fR"
+Defines the duration of the scan phase in seconds. Defaults to \fB20\fR seconds.
+.TP
+.BR \-o ", " \-\-output " \fIfilename\fR"
+Specifies the destination CSV file for telemetry logging. If unspecified, the application automatically outputs to \fIsentry_log_YYYYMMDD_HHMMSS.csv\fR in the current working directory.
+.TP
+.BR \-p ", " \-\-passive
+Executes in headless/passive surveillance mode. Suppresses the interactive Rich TUI and post-scan menu; streams output directly to disk. Suitable for 24/7 background daemons.
+.TP
+.BR \-h ", " \-\-help
+Outputs command syntax, argument flags, and operational examples, then exits.
+
+.SH OPERATIONAL MODES
+
+.SS Live Terminal Dashboard (TUI)
+When executed interactively without \fB\-p\fR, BlueSentry renders a split-screen dashboard:
+.IP \(bu 2
+\fBTop Pane:\fR Real-time tabular feed sorted dynamically by RSSI power. Columns display Target ID, Hardware Address, Privacy Bit (RAND/PUB), RSSI (dBm), Resolved Vendor Name, and GATT Services.
+.IP \(bu 2
+\fBBottom Pane:\fR ASCII radial proximity radar visualizing target distance relative to the host receiver antenna.
+
+.SS Device Interrogation
+Connects asynchronously to a target peripheral, walks the GATT Service hierarchy, and reads exposed public characteristics (Device Name, Battery Percentage, Hardware Revision) without requiring pairing.
+
+.SS Bloodhound Signal Tracker
+Locks onto a designated BD_ADDR and renders an ASCII live signal power trend using \fBplotext\fR. Applies Exponential Moving Average (EMA, alpha = 0.35) filtering to eliminate multipath radio spikes.
+
+.SH PERMISSIONS AND CAPABILITIES
+Under Linux, raw BLE socket access traditionally requires superuser privileges. Running BlueSentry under \fBsudo\fR is strongly discouraged in production environments.
+.PP
+To permit non-root execution, assign Linux capabilities to your Python binary:
+.PP
+.nf
+.RS
+# setcap 'cap_net_raw,cap_net_admin+eip' $(readlink \-f $(which python3))
+.RE
+.fi
+
+.SH FILES
+.TP
+.I sentry_log_*.csv
+Default CSV output files generated automatically at the termination of each scan session.
+
+.SH SEE ALSO
+.BR bluetoothctl (1),
+.BR hciconfig (1),
+.BR btmon (1),
+.BR rfkill (8)
+
+.SH AUTHOR
+BlueSentry Systems Engineering Team <support@bluesentry.local>
